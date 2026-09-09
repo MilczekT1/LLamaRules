@@ -38,11 +38,6 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
-    <!--
-      Only so NoJUnit4RuleTest's flagged examples compile. Test scope is never resolved
-      transitively, so this does not reach consumers importing corral-rules at test scope.
-      No vintage engine is on the classpath, so nothing here executes a JUnit 4 annotation.
-    -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>

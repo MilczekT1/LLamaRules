@@ -19,9 +19,8 @@ import lombok.NoArgsConstructor;
 /**
  * No class compiled into test output may depend on anything {@code junit:junit} ships.
  *
- * <p>Scoped to test <em>output</em>, not to classes declaring a test: the shared base class with a
- * JUnit 4 {@code @Before} and no tests of its own is the class the fixture never runs for, and the
- * only place it can be caught.
+ * <p>Scoped to test <em>output</em>, so base classes, helpers and fixtures with no test of their
+ * own are in scope.
  *
  * <p>Inspects <em>test</em> classes, so consumers must not set
  * {@code ImportOption.DoNotIncludeTests} — it would pass vacuously.
@@ -32,59 +31,49 @@ public final class NoJUnit4Rule implements DocumentedRule {
     static final RuleDoc DOC = RuleDoc.builder()
             .id("corral.test.no-junit4")
             .why("""
-                    A class annotated org.junit.Test compiles whenever junit:junit is on the test \
-                    classpath — usually transitively, from a dependency nobody chose — and the Jupiter \
-                    engine does not recognise it. The class is discovered as containing no tests, so the \
-                    build is green with none of its assertions ever evaluated: nothing is printed, nothing \
-                    is reported as skipped, and one package segment separates org.junit.Test from \
-                    org.junit.jupiter.api.Test. A half-migrated file is worse. Jupiter's @Test beside \
-                    JUnit 4's @Before runs the tests but never the setup, so they execute against null \
-                    fields; and JUnit 4's assertEquals takes the message first where Jupiter's takes it \
-                    last, so switching the static import without touching the call sites still compiles \
-                    and now compares the message to the expected value. The vector is rarely the test \
-                    class. It is the abstract base class, the @Rule on a helper, the fixture builder \
-                    still importing org.junit.Assert — code with no test methods of its own that every \
-                    test in the package extends or calls.""")
+                    org.junit.Test compiles whenever junit:junit is on the test classpath — usually \
+                    transitively, from a dependency nobody chose — and the Jupiter engine does not \
+                    recognise it. The class is discovered as containing no tests: green build, no \
+                    assertion ever evaluated, nothing reported as skipped. One package segment separates \
+                    it from org.junit.jupiter.api.Test. Half-migrated is worse: Jupiter's @Test beside \
+                    JUnit 4's @Before runs the test but never the setup, so it executes against null \
+                    fields, and JUnit 4's assertEquals takes the message first where Jupiter's takes it \
+                    last, so switching only the static import still compiles and now compares the \
+                    message to the expected value. The vector is rarely the test class — it is the base \
+                    class, the @Rule on a helper, the fixture builder importing org.junit.Assert: code \
+                    with no tests of its own that every test in the package extends or calls.""")
             .howToFix("""
-                    The violation names the JUnit 4 type it found, and there are two kinds. If it names \
-                    an annotation or a runner, migrate the member: org.junit.Test to \
-                    org.junit.jupiter.api.Test, @Before/@After to @BeforeEach/@AfterEach, \
-                    @BeforeClass/@AfterClass to @BeforeAll/@AfterAll, @RunWith(MockitoJUnitRunner.class) \
-                    to @ExtendWith(MockitoExtension.class), @Rule/@ClassRule to the extension the library \
-                    ships for JUnit 5, and delete the test rather than carrying an @Ignore. That part is \
-                    mechanical and the compiler catches what you miss. If it names Assert, Assume or \
-                    TestCase, it is not: switch to org.junit.jupiter.api.Assertions AND move the message \
-                    argument to the end of every call you touch, because the compiler will not tell you \
-                    if you forget. For anything richer than equality, and for every Hamcrest assertThat, \
-                    move to AssertJ. Then remove junit:junit as a declared test dependency, or find the \
-                    parent that brings it in with mvn dependency:tree — leaving it on the classpath is \
-                    what lets the mixed state survive compilation.""")
+                    The violation names the JUnit 4 type. Most annotations are mechanical and the \
+                    compiler catches what you miss: the same-named Jupiter annotation, with Each or All \
+                    where JUnit 4 left the scope implicit. Three do not map by name — @RunWith takes the \
+                    matching @ExtendWith (MockitoJUnitRunner to MockitoExtension), @Rule and @ClassRule \
+                    take the JUnit 5 extension their library ships, and @Ignore means delete the test, \
+                    not @Disabled. Assert, Assume and TestCase are not mechanical: switch to \
+                    org.junit.jupiter.api.Assertions AND move the message argument to the end of every \
+                    call you touch, one call site at a time, because the compiler will not tell you if \
+                    you forget. Take anything richer than equality, and every Hamcrest assertThat, to \
+                    AssertJ. Then drop junit:junit, or find the parent bringing it in with mvn \
+                    dependency:tree — its presence there is what lets the mixed state compile.""")
             .howNotToFix("""
-                    Do NOT add junit-vintage-engine so the JUnit 4 annotations run again: that buys a \
-                    green build by keeping two engines, two annotation vocabularies and two lifecycle \
-                    models alive in one suite, which is the state this rule exists to end. Do NOT change \
-                    only the import and leave the argument order — that is the bug half this rule exists \
-                    to stop, and it produces a green build. Do NOT wrap the JUnit 4 assertions in a \
-                    project helper so the call target is no longer org.junit.Assert: the argument-order \
-                    hazard survives the wrapper and is now invisible, and the helper is what this rule \
-                    flags instead. Do NOT swap @Test for @Ignore or delete the annotation so the method \
-                    quietly becomes dead code, do NOT delete assertions to make a migrated test compile, \
-                    and do NOT leave assertTrue(true) behind as a placeholder — nothing else catches that \
-                    one. One dodge this predicate does NOT catch: re-exporting org.junit.Test as a \
-                    meta-annotation on your own @FastTest. dependOnClassesThat is not transitive, so it \
-                    flags FastTest itself and goes quiet on every class using it. That is a weak dodge \
-                    rather than a working one — JUnit 4 does not honour meta-annotations at runtime, so \
-                    those tests still do not execute — but do not read the silence as a fix. Do NOT \
-                    hand-edit the freeze store to admit a new entry: it records debt you inherited, not \
-                    debt you just wrote.""")
+                    Do NOT add junit-vintage-engine to make the annotations run again: that buys green by \
+                    keeping two engines, two annotation vocabularies and two lifecycle models alive at \
+                    once, the state this rule exists to end. Do NOT change the import and leave the \
+                    argument order — that is the bug half this rule exists to stop, and it stays green. \
+                    Do NOT wrap the assertions in a project helper: the argument-order hazard survives \
+                    the wrapper, now invisible, and the helper is flagged instead. Do NOT swap @Test for \
+                    @Ignore or drop it so the method quietly becomes dead code, do NOT delete \
+                    assertions to make a migrated test compile, and do NOT leave assertTrue(true) as a \
+                    placeholder — nothing else catches that one. Do NOT hand-edit the freeze store to \
+                    admit a new entry: it records debt you inherited, not debt you just wrote. One dodge \
+                    this predicate does NOT catch: re-exporting org.junit.Test as a meta-annotation on \
+                    your own @FastTest. dependOnClassesThat is not transitive, so it flags FastTest and \
+                    goes quiet on the classes using it — and since JUnit 4 ignores meta-annotations at \
+                    runtime those tests still do not run, so do not read the silence as a fix.""")
             .build();
 
     /**
-     * The subtrees of {@code org.junit..} that JUnit 4 does not own. Each is load-bearing and a real
-     * package: {@code org.junit.jupiter..} is JUnit 5's own API, {@code org.junit.platform..} is
-     * legitimately imported ({@code @Suite}, {@code Testable}), and {@code org.junit.vintage..} is the
-     * engine a mid-migration consumer configures on purpose — configuring it is not a violation, only
-     * using JUnit 4's API is.
+     * Excluded from {@code org.junit..}: JUnit 5's own API, the Platform, and the vintage engine.
+     * Configuring vintage is not a violation — only using JUnit 4's API is.
      */
     static final List<String> NOT_JUNIT4_PACKAGES = List.of(
             "org.junit.jupiter..",
@@ -102,11 +91,9 @@ public final class NoJUnit4Rule implements DocumentedRule {
                     .as("a JUnit 4 or JUnit 3 type");
 
     /**
-     * One dependency check covers the whole surface: annotations on classes, methods and fields, field
-     * and parameter types, superclasses ({@code extends junit.framework.TestCase}) and method calls
-     * ({@code Assert.assertEquals}). Violations are therefore per-dependency, not per-class — a class
-     * with {@code @Before}, {@code @Test} and an {@code Assert} call freezes as three entries, so
-     * adding a fourth JUnit 4 usage to an already-frozen class is a new violation and is blocked.
+     * {@code dependOnClassesThat} covers annotations, superclasses, field and parameter types and
+     * method calls in one check. Violations are per-dependency, not per-class: adding a fourth JUnit 4
+     * usage to an already-frozen class is a new violation.
      */
     static final ArchRule DEFINITION = noClasses()
             .that(TestScope.TEST_CLASSES)

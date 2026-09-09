@@ -4,12 +4,7 @@ import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-/**
- * MUST FLAG on {@link Assert} only — the Jupiter assertion beside it must stay silent.
- *
- * <p>The two calls are the same comparison written both ways round: JUnit 4 takes the message first,
- * Jupiter takes it last, which is why switching only the static import still compiles.
- */
+/** MUST FLAG on {@link Assert} only — the Jupiter assertion beside it must stay silent. */
 public class MessageFirstAssertCase {
 
     private final long total = 2;

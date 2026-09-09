@@ -29,10 +29,8 @@ import junit.framework.TestSuite;
 import org.junit.jupiter.api.Test;
 
 /**
- * The examples live in {@code fixtures/} rather than as nested classes here, which is what keeps them
- * out of Surefire (excluded by {@code **}{@code /fixtures/**}) and out of static analysis. They are
- * deliberately bad code — a JUnit 4 {@code @Before}, a {@code @Test} that asserts nothing — and a
- * linter told to fix any of that would be asking to delete the violation under test.
+ * The examples live in {@code fixtures/}, which Surefire and Sonar both exclude: they are
+ * deliberately bad code, and a linter told to fix any of it would delete the violation under test.
  */
 class NoJUnit4RuleTest {
 
@@ -42,8 +40,8 @@ class NoJUnit4RuleTest {
     private static final String STORE_PATH = "src/test/resources/archunit/frozen";
 
     /**
-     * {@link TestSuite} is JUnit 4's own code, loaded from a jar rather than test output, so it pins
-     * the scope clause: it is soaked in JUnit 3 types and must still not be reported.
+     * {@link TestSuite} is JUnit 4's own code, loaded from a jar rather than test output: it pins the
+     * scope clause.
      */
     private static final JavaClasses EXAMPLES = new ClassFileImporter().importClasses(
             HalfMigratedCase.class, MessageFirstAssertCase.class, AbstractSeededBase.class,
@@ -128,9 +126,8 @@ class NoJUnit4RuleTest {
     }
 
     /**
-     * Vintage is the one excluded package with no flagged example, so it is pinned here instead:
-     * putting junit-vintage-engine on this classpath to write one would make every JUnit 4 example
-     * actually execute, which is the arrangement the rule exists to prevent.
+     * Vintage has no flagged example: junit-vintage-engine on this classpath would make every JUnit 4
+     * example actually execute.
      */
     @Test
     void excludesEveryPackageUnderOrgJunitThatJUnit4DoesNotOwn() {

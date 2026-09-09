@@ -5,10 +5,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * MUST FLAG: {@code org.junit.runner} and {@code org.junit.rules} are subpackages, so this pins the
- * trailing {@code ..} in {@code org.junit..} — without it neither is matched.
- */
+/** MUST FLAG: subpackages of {@code org.junit}, pinning the trailing {@code ..}. */
 @RunWith(JUnit4.class)
 public class RunnerAndRuleCase {
 
