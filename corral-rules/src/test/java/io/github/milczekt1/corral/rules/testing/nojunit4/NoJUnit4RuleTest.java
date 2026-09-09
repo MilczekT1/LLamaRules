@@ -11,133 +11,30 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.freeze.FreezingArchRule;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.AbstractSeededBase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.HalfMigratedCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.HomegrownAssertCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.JUnit3StyleCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.JupiterOnlyCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.MessageFirstAssertCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.RunnerAndRuleCase;
+import io.github.milczekt1.corral.rules.testing.nojunit4.fixtures.SuiteDecoratorCase;
 import io.github.milczekt1.corral.scope.TestScope;
 import io.github.milczekt1.corral.store.EmptyOmittingViolationStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import junit.extensions.TestSetup;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.platform.commons.annotation.Testable;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
- * The examples are nested and static, so neither Surefire nor Jupiter selects them — Surefire matches
- * class files ending in {@code Test}/{@code Tests}/{@code TestCase}, and Jupiter descends only into
- * {@code @Nested} inner classes. Their JUnit 4 annotations are therefore compiled and never executed,
- * which is exactly the silent state this rule exists to find.
- *
- * <p>{@code org.junit.Test} is written out in full where it is needed: importing it would collide with
- * {@code org.junit.jupiter.api.Test}, which is the one-segment confusion this rule is about.
+ * The examples live in {@code fixtures/} rather than as nested classes here, which is what keeps them
+ * out of Surefire (excluded by {@code **}{@code /fixtures/**}) and out of static analysis. They are
+ * deliberately bad code — a JUnit 4 {@code @Before}, a {@code @Test} that asserts nothing — and a
+ * linter told to fix any of that would be asking to delete the violation under test.
  */
 class NoJUnit4RuleTest {
-
-    /**
-     * MUST FLAG on {@code @Before} only. The Jupiter {@code @Test} in the same class is the
-     * must-not-match half: an over-broad predicate that dropped the Jupiter exclusion finds it too.
-     */
-    static class HalfMigratedCase {
-
-        @Before
-        void seedTheOrder() {
-        }
-
-        @Test
-        void placesTheOrder() {
-        }
-    }
-
-    /** MUST FLAG on {@code org.junit.Assert} only — the Jupiter assertion beside it must stay silent. */
-    static class MessageFirstAssertCase {
-
-        @Test
-        void comparesTwoWays() {
-            org.junit.Assert.assertEquals("message first, JUnit 4", 1, 1);
-            Assertions.assertEquals(1, 1, "message last, Jupiter");
-        }
-    }
-
-    /**
-     * MUST FLAG: declares no test of its own, so a rule scoped to classes-declaring-a-test would report
-     * nothing while the fixture silently never ran for any Jupiter subclass extending this.
-     */
-    abstract static class AbstractSeededBase {
-
-        @Before
-        void seedTheDatabase() {
-        }
-    }
-
-    /**
-     * MUST FLAG: {@code org.junit.runner} and {@code org.junit.rules} are subpackages, so this pins the
-     * trailing {@code ..} in {@code org.junit..} — without it neither is matched.
-     */
-    @RunWith(JUnit4.class)
-    static class RunnerAndRuleCase {
-
-        @Rule
-        public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-        @org.junit.Test
-        void writesAFile() {
-        }
-    }
-
-    /** MUST FLAG: JUnit 3, reached by inheritance rather than by an annotation. */
-    static class JUnit3StyleCase extends TestCase {
-
-        public void testTheTotal() {
-            assertEquals("inherited from junit.framework.Assert", 1, 1);
-        }
-    }
-
-    /** MUST FLAG: the JUnit 3 decorator package, which ships in junit:junit alongside the rest. */
-    static class SuiteDecoratorCase {
-
-        TestSetup decorateWithOneTimeSetup(TestCase testCase) {
-            return new TestSetup(testCase);
-        }
-    }
-
-    /** MUST IGNORE: Jupiter, its params module and the Platform are all separately excluded packages. */
-    @Testable
-    static class JupiterOnlyCase {
-
-        @Test
-        void chargesTheCard() {
-            Assertions.assertEquals(1, 1, "card should be charged");
-        }
-
-        @ParameterizedTest
-        @ValueSource(ints = {1, 2})
-        void chargesEachCard(int amount) {
-            Assertions.assertTrue(amount > 0);
-        }
-    }
-
-    /** MUST IGNORE: an {@code assertEquals} of its own is not a dependency on anyone else's. */
-    static class HomegrownAssertCase {
-
-        static void assertEquals(long expected, long actual) {
-            if (expected != actual) {
-                throw new AssertionError(expected + " != " + actual);
-            }
-        }
-
-        void checksTheTotal() {
-            assertEquals(1, 1);
-        }
-    }
 
     private static final String ID = "corral.test.no-junit4";
 
@@ -233,7 +130,7 @@ class NoJUnit4RuleTest {
     /**
      * Vintage is the one excluded package with no flagged example, so it is pinned here instead:
      * putting junit-vintage-engine on this classpath to write one would make every JUnit 4 example
-     * above actually execute, which is the arrangement the rule exists to prevent.
+     * actually execute, which is the arrangement the rule exists to prevent.
      */
     @Test
     void excludesEveryPackageUnderOrgJunitThatJUnit4DoesNotOwn() {
